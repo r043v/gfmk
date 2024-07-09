@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>data/drop192.png</file>
+    </qresource>
+</RCC>
