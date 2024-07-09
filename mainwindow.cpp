@@ -45,6 +45,10 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *e){
     }
 }
 
+void MainWindow::updateFrameSizeLabel( void ){
+    ui->framesNfo->setText( QString("frame%1 of %2x%3").arg( frameSet.frmn > 1 ? "s" : "" ).arg( frameSet.frmw ).arg( frameSet.frmh ) ) ;
+}
+
 void MainWindow::dropEvent(QDropEvent *e){
 
     QList filelist = e->mimeData()->urls() ; // dropped files list
@@ -70,7 +74,7 @@ void MainWindow::dropEvent(QDropEvent *e){
     ui->horizontalCheck->setChecked( !frameSet.imgv ) ; // is horizontal ?
     ui->frameNbInput->setValue( frameSet.frmn ) ;
 
-    ui->framesNfo->setText( QString("frame%1 of %2x%3").arg( frameSet.frmn > 1 ? "s" : "" ).arg( frameSet.frmw ).arg( frameSet.frmh ) ) ;
+    updateFrameSizeLabel();
 
     // extend our main window with controls
     setFixedHeight( 260 ) ;
@@ -132,7 +136,6 @@ void MainWindow::on_transparentOpt_currentIndexChanged(int index){
 
 void MainWindow::on_frameNbInput_valueChanged(int v){
     frameSet.forceFrameNb( v );
+    updateFrameSizeLabel();
     showPreview();
-    //previewWnd.updateDisplay( 0 );
 }
-

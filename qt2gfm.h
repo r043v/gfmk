@@ -2,28 +2,37 @@
 #define QT2GFM_H
 
 #include <QList>
+#include <QSet>
 #include <QPixmap>
 #include <QMimeDatabase>
+
+struct frame {
+    QPixmap frame ;
+    u_int32_t transparent ;
+    u_int32_t nbColors ;
+    QString nfo ;
+} ;
 
 class qt2gfm
 {
 private:
     QPixmap original ;
-    QPixmap fullSet ;
-    QList<QPixmap> frames ;
+    QList<struct frame> frames ;
+
     void deleteFrames( void );
-    QMimeDatabase mimedb ;
     void guessFrameNb( void );
     void clearFrames( void ) ;
-    void applyTransparency( QPixmap &p );
+    u_int32_t applyTransparency( QPixmap &p );
+    void applyDeep( QPixmap &p );
     void generateNfo( void );
 
     int width, height ; // original picture size
     bool vertical ;
     int frameWidth, frameHeight, frameNb = 0 ;
     int transparency ; /* 0:no, 1:upleft, 2:downleft, 3:pink, 4:white, 5:black */
+    int deep ; /* 4 / 8 / 16 / 32 */
     QString folder, name ;
-    QList<QString> nfo ;
+    QMimeDatabase mimedb ;
 
 public:
     const int& imgw = width;
@@ -41,7 +50,8 @@ public:
     void forceFrameNb( int nb ) ;
     void forceWay( bool vertical ) ;
     void setTransparency( int t ) ;
-    QPixmap & getFrame( int n ) ;
+    void setDeep( int d ) ;
+    struct frame * getFrame( int n ) ;
     QPixmap * getFrameset( void ) ;
     int toHeader( void ) ;
     void log(void);
@@ -49,5 +59,3 @@ public:
 };
 
 #endif // QT2GFM_H
-
-

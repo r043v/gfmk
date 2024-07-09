@@ -34,12 +34,9 @@ void previewWindow::setFrameSet( qt2gfm * set ){
 }
 
 void previewWindow::updateDisplay( int value ){
-/*
-    ui->frameView->setFixedHeight(320);
-    ui->frameView->setFixedWidth(320);
-*/
+    struct frame * f = frameSet->getFrame(value) ;
 
-    const QPixmap& frame = frameSet->getFrame(value) ;//value ? frameSet->getFrame(value) : frameSet->img ;
+    const QPixmap& frame = f->frame ;
 
     QRect frmRect( 0, 0, frame.width(), frame.height() ) ;
 
@@ -47,7 +44,6 @@ void previewWindow::updateDisplay( int value ){
 
     framePreview.clear();
     framePreview.addPixmap( frame );
-    //framePreview.setBackgroundBrush(QBrush(QColor(255,0,255,127)));
 
     ui->frameView->setScene(&framePreview);
 

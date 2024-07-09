@@ -58,5 +58,6 @@ private:
     void dropEvent(QDropEvent* event);
     bool eventFilter(QObject *obj, QEvent *event);
     void closeEvent(QCloseEvent *event);
+    void updateFrameSizeLabel( void );
 };
 #endif // MAINWINDOW_H
