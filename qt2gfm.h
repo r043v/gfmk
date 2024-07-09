@@ -9,6 +9,7 @@
 struct frame {
     QPixmap frame ;
     u_int32_t transparent ;
+    u_int32_t originalNbColors ;
     u_int32_t nbColors ;
     QString nfo ;
 } ;
@@ -23,7 +24,7 @@ private:
     void guessFrameNb( void );
     void clearFrames( void ) ;
     u_int32_t applyTransparency( QPixmap &p );
-    void applyDeep( QPixmap &p );
+    void applyDeep( struct frame * f );
     void generateNfo( void );
 
     int width, height ; // original picture size

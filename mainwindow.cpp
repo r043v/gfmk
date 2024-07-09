@@ -69,7 +69,7 @@ void MainWindow::dropEvent(QDropEvent *e){
     ui->graphicsView->setSceneRect( frmRect );
     ui->graphicsView->fitInView(frmRect,Qt::KeepAspectRatio);
 
-    printf("vertical ? %i\n", frameSet.imgv);
+    //printf("vertical ? %i\n", frameSet.imgv);
 
     ui->horizontalCheck->setChecked( !frameSet.imgv ) ; // is horizontal ?
     ui->frameNbInput->setValue( frameSet.frmn ) ;

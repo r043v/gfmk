@@ -17,11 +17,9 @@ int qt2gfm::load( QString fileName ){
     if( !width || !height ) return 0 ; // bad picture ?
 
     guessFrameNb();
-    log();
+    //log();
 
     generateFrames();
-
-    //float r = ( (float)w ) / ( (float)h ) ;
 
     return 1 ; // no error
 }
@@ -79,27 +77,15 @@ void qt2gfm::clearFrames( void ){
 }
 
 struct frame * qt2gfm::getFrame( int frame ){
-    if( !frame || frame > frameNb ) return &frames[ 0 ] ; // fullSet ..
+    if( frame < 0 || frame > frameNb ) return &frames[ 0 ] ; // fullSet ..
     return &frames[ frame ] ;
 }
 
 void qt2gfm::setDeep( int deep ){ this->deep = deep ; }
 
-void qt2gfm::applyDeep( QPixmap &p ){
-    if( deep == 32 ) return ;
+void qt2gfm::applyDeep( struct frame * f ){
 
-    QImage i = p.toImage() ;
-
-    if( deep == 16 ){ // 16b deep, can be converted to 565 rgb
-        i = i.convertToFormat( QImage::Format_ARGB8565_Premultiplied )  ; // force 565 16b
-        p.convertFromImage( i ) ;
-        return ;
-    }
-
-    // if here, we need 4b or 8b color deep
-    // let's count colors to see if we need reduce them
-
-    i = i.convertToFormat( QImage::Format_RGBA8888 )  ; // force 32b
+    QImage i = f->frame.toImage().convertToFormat( QImage::Format_RGBA8888 )  ; // force 32b
 
     int sy = i.height(), sx = i.width() ;
 
@@ -115,6 +101,19 @@ void qt2gfm::applyDeep( QPixmap &p ){
     u_int32_t nbColors = ucolors32.count(), maxColors ;
     bool isTransparent = ucolors32.contains( 0 ) ;
 
+    f->nbColors = nbColors ;
+
+    if( deep == 32 ) return ;
+
+    if( deep == 16 ){ // 16b deep, can be converted to 565 rgb
+        i = i.convertToFormat( QImage::Format_ARGB8565_Premultiplied )  ; // force 565 16b
+        f->frame.convertFromImage( i ) ;
+        return ;
+    }
+
+    // if here, we need 4b or 8b color deep
+    // let's count colors to see if we need reduce them
+
     if( deep == 4 ){ // 4b/pixel ~ 16 colors + transparent
         maxColors = 16 ;
     } else { // 8b/pixel ~ 256 colors + transparent
@@ -125,22 +124,23 @@ void qt2gfm::applyDeep( QPixmap &p ){
 
     bool needReduce = nbColors > maxColors ;
 
-    printf("%u/%u colors, %s\n", nbColors, maxColors, isTransparent ? "transparent" : "opaque" ) ;
+    //printf("%u/%u colors, %s\n", nbColors, maxColors, isTransparent ? "transparent" : "opaque" ) ;
 
     if( !needReduce ) return ; // nothing to do, wanted deep can handle our picture
 
     // we need reduce picture colors
+
+    // fill frame colors info to update nfo string
+    f->originalNbColors = nbColors ;
+    f->nbColors = maxColors ;
+
+    /* to do */
+
 }
 
 u_int32_t qt2gfm::applyTransparency( QPixmap &p ){
     // convert as a qimage to force 32b & access raw data..
-    QImage i = p.toImage() ;
-
-    //u_int8_t deep = 4 ;     if( deep == 4 ) i = i.convertToFormat(QImage::Format_RGB444) ;
-
-    i = i.convertToFormat( QImage::Format_RGBA8888 )  ;
-
-    //i.convertToFormat(QImage::Format_RGB444);
+    QImage i = p.toImage().convertToFormat( QImage::Format_RGBA8888 )  ;
 
     u_int32_t pTransparent = 0 ;
 
@@ -181,55 +181,6 @@ u_int32_t qt2gfm::applyTransparency( QPixmap &p ){
                 line32++ ;
             }
         }
-
-
-/*
-        QSet<uint32_t> ucolors32 ;
-
-        for( int y=0; y<sy ; y++ ){
-            line = i.scanLine(y) ; // finnaly a C style anywhere here !
-
-            uint32_t *line32 = (uint32_t*)line, *line32end = &line32[sx] ;
-            while( line32 != line32end ){
-                if( *line32 == transparent32 ){ *line32 = 0 ; pTransparent++ ; }
-                ucolors32.insert(*line32) ;
-                //printf("%08X ",*line32) ;
-                line32++ ;
-            }
-            //printf("\n") ;
-        }
-
-        QImage i8 = i.convertToFormat( QImage::Format_Indexed8, Qt::ThresholdDither|Qt::AutoColor ) ;
-        QList<QRgb> colors = i8.colorTable();
-        QSet<QRgb> ucolors ;
-
-        uint8_t colorNb = 0 ;
-        for( int n = 0; n<colors.length() ; n++ ){
-            QRgb * c = &colors[n] ;
-            if(*c){
-                //printf("%u : #%08X\n", n, *c );
-                ucolors.insert(*c) ;
-                colorNb++ ;
-            }
-        }
-
-        printf("%llu / %llu / %u / %u colors\n", ucolors32.count(), ucolors.count(), colorNb, i8.colorCount() );
-
-        i8.setColorCount(16);
-        colors.clear();
-        colors = i8.colorTable() ;
-
-        colorNb = 0 ;
-        for( int n = 0; n<colors.length() ; n++ ){
-            QRgb * c = &colors[n] ;
-            if(*c){
-                //printf("%u : #%08X\n", n, *c );
-                colorNb++ ;
-            }
-        }
-
-        printf("%u/%u colors\n", colorNb, i8.colorCount() );
-*/
     }
 
     p.convertFromImage( i ) ;
@@ -247,27 +198,37 @@ void qt2gfm::generateNfo( void ){
     frames[0].nfo = QString("%1 frame%2 of %3x%4").arg(frameNb).arg( frameNb > 1 ? "s" : "" ).arg( frmw ).arg( frmh ) ;
 
     for( int n=1 ; n<=frameNb; n++ ){
-        frames[n].nfo = QString("frame %1 of %2").arg(n).arg( frameNb ) ;
+        struct frame * f = &frames[n] ;
+        f->nfo = QString("%1 of %2 ~ %3 colors").arg(n).arg( frameNb ).arg( f->nbColors ) ;
+        if( f->originalNbColors ){
+            f->nfo += QString(" on %1").arg( f->originalNbColors ) ;
+        }
     }
+}
+
+void zeroFrame( struct frame * f ){ // wtf qt, let me memset what i want :(
+    f->nbColors = f->originalNbColors = f->transparent = 0 ;
 }
 
 void qt2gfm::generateFrames( void ){
     clearFrames() ; // fresh list
 
     struct frame fullSet ;
+    zeroFrame( &fullSet ) ;
     fullSet.frame = original.copy() ;
-    applyTransparency( fullSet.frame ) ;
+    fullSet.transparent = applyTransparency( fullSet.frame ) ;
     frames.append( fullSet ) ;
 
     int x = 0, y = 0 ;
     for( int n=0; n<frameNb; n++ ){
         struct frame f ;
+        zeroFrame( &f ) ;
 
-        printf("copy frame %i %i,%i %ix%i\n", n, x, y, frameWidth, frameHeight );
+        //printf("copy frame %i %i,%i %ix%i\n", n, x, y, frameWidth, frameHeight );
         f.frame = original.copy( x, y, frameWidth, frameHeight ) ;
 
         f.transparent = applyTransparency( f.frame );
-        applyDeep( f.frame ) ;
+        applyDeep( &f ) ;
 
         if( vertical ) y += frameHeight ; else x += frameWidth ;
         frames.append( f ) ;

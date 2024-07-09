@@ -24,7 +24,7 @@ previewWindow::~previewWindow()
 
 void previewWindow::setFrameSet( qt2gfm * set ){
     frameSet = set ;
-    set->log();
+    //set->log();
     ui->frameSelector->setMaximum( set->frmn ) ;
     int current = ui->frameSelector->value() ;
     if( current > set->frmn ) current = 0 ;
