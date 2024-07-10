@@ -14,6 +14,16 @@ struct frame {
     QString nfo ;
 } ;
 
+union qualityBits {
+    u_int32_t rgb ;
+    struct {
+        u_int8_t r ;
+        u_int8_t g ;
+        u_int8_t b ;
+        u_int8_t junk ;
+    };
+};
+
 class qt2gfm
 {
 private:
@@ -51,7 +61,7 @@ public:
     void forceFrameNb( int nb ) ;
     void forceWay( bool vertical ) ;
     void setTransparency( int t ) ;
-    void setDeep( int d ) ;
+    void setDeep( int d, bool update = false ) ;
     struct frame * getFrame( int n ) ;
     QPixmap * getFrameset( void ) ;
     int toHeader( void ) ;

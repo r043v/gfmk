@@ -59,7 +59,7 @@
    </widget>
    <widget class="QComboBox" name="formatOpt">
     <property name="enabled">
-     <bool>false</bool>
+     <bool>true</bool>
     </property>
     <property name="geometry">
      <rect>
@@ -80,32 +80,22 @@
     </property>
     <item>
      <property name="text">
-      <string>Gfm 4b</string>
+      <string>4b</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>Gfm 32b</string>
+      <string>8b</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>raw 4b</string>
+      <string>16b</string>
      </property>
     </item>
     <item>
      <property name="text">
-      <string>raw 8b</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>raw 16b</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>raw 32b</string>
+      <string>32b</string>
      </property>
     </item>
    </widget>

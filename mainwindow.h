@@ -46,6 +46,7 @@ private slots:
     void on_closeBtn_clicked();
     void on_transparentOpt_currentIndexChanged(int index);
     void on_frameNbInput_valueChanged(int v);
+    void on_formatOpt_currentIndexChanged(int index);
 
 private:
     Ui::MainWindow *ui;

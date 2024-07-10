@@ -3,7 +3,7 @@
 qt2gfm::qt2gfm(){
     width = height = frameWidth = frameHeight = frameNb ;
     transparency = 3 ; // pink
-    deep = 4 ; // 32b
+    deep = 32 ;
 }
 
 int qt2gfm::load( QString fileName ){
@@ -81,7 +81,14 @@ struct frame * qt2gfm::getFrame( int frame ){
     return &frames[ frame ] ;
 }
 
-void qt2gfm::setDeep( int deep ){ this->deep = deep ; }
+void qt2gfm::setDeep( int d, bool update ){
+    const u_int8_t deepTable[4] = { 4,8,16,32 } ;
+    if( d < 4 ) d = deepTable[ d ] ;
+    this->deep = d ;
+    if( update ) generateFrames() ;
+}
+
+bool downgradeToColors( QPixmap &p, uint32_t nb );
 
 void qt2gfm::applyDeep( struct frame * f ){
 
@@ -132,118 +139,70 @@ void qt2gfm::applyDeep( struct frame * f ){
     f->originalNbColors = nbColors ;
     f->nbColors = maxColors ;
 
-    /* to do */
-
-    return ;
-
-    // =>> let's try a step by step channel's precision bits downgrade <<=
-
-
-    // convert to 444 and retry ?
-    // colors stats and get best n colors to generate a palette
-    // convert all picture to best match palette color
-
-    printf("try reduce colors ... %u on %u\n", nbColors, maxColors);
-
-    QImage i444 = i.convertToFormat( QImage::Format_RGB444 ); // reduce precision
-    QSet<uint16_t> ucolors444 ; // a set who contain picture colors
-
-    // fill our set
-    for( int y=0; y<sy ; y++ ){
-        uint8_t * line = i444.scanLine(y) ;
-        uint16_t *line16 = (uint16_t*)line, *line16end = &line16[sx] ;
-        while( line16 != line16end ) ucolors444.insert(*line16++) ;
-    }
-
-    u_int32_t nbColors444 = ucolors444.count() ;
-
-    printf("reduced to 12b precision ... now have %u colors .. ", nbColors444 ) ;
-
-    if( nbColors444 <= maxColors ){ // success \o/
-        f->frame.convertFromImage(i444) ;
-        f->nbColors = nbColors444 ;
-        printf("success!\n") ;
-        return ;
-    }
-
-    printf("omg :(\n") ;
-
-    // plan B on the way :S
-
+    downgradeToColors( f->frame, maxColors ) ;
 }
 
-/*
+uint32_t countColors( QImage * i ){
+    QSet<uint32_t> colors ;
 
-bool reduceUntilNBColors( QImage *i, u_int32_t nb ){
-    QImage i32 = i->convertToFormat( QImage::Format_RGB888 );
-    uint8_t quality = 24 ; // full rgb
-
-    QSet<uint32_t> colors ; // a set who contain picture colors
-    u_int32_t nbcolors = 0 ;
-
-
-
-    do {
-
-    } while( nbcolors > nb ) ;
-
-    // fill our set
-    for( int y=0; y<sy ; y++ ){
-        uint8_t * line = i444.scanLine(y) ;
-        uint16_t *line16 = (uint16_t*)line, *line16end = &line16[sx] ;
-        while( line16 != line16end ) ucolors444.insert(*line16++) ;
+    for( int y=0; y<i->height() ; y++ ){
+        uint8_t *line = i->scanLine( y ) ;
+        uint32_t *line32 = (uint32_t*)line, *line32end = &line32[ i->width() ] ;
+        while( line32 != line32end ) colors.insert( *line32++ ) ;
     }
 
-    u_int32_t nbColors444 = ucolors444.count() ;
-
-    printf("reduced to 12b precision ... now have %u colors .. ", nbColors444 ) ;
-
-    if( nbColors444 <= maxColors ){ // success \o/
-        f->frame.convertFromImage(i444) ;
-        f->nbColors = nbColors444 ;
-        printf("success!\n") ;
-        return ;
-    }
-
-    printf("omg :(\n") ;
+    return colors.count() ;
 }
 
-*/
+const u_int8_t qualityBitsMask[9] = {
+    0,
+    0b10000000,
+    0b11000000,
+    0b11100000,
+    0b11110000,
+    0b11111000,
+    0b11111100,
+    0b11111110,
+    0xff
+} ;
 
-union qualityBits {
-    u_int32_t rgb ;
-    struct {
-        u_int8_t r ;
-        u_int8_t g ;
-        u_int8_t b ;
-        u_int8_t junk ;
-    };
-};
+QImage downsampleQImage( QImage *i, union qualityBits * rgb ){
+    QImage o = i->copy() ;
+    int sy = o.height(), sx = o.width() ;
 
-void qualityReduce( void ){
+    for( int y=0; y<sy ; y++ ){
+        uint8_t *line = o.scanLine( y ), *lineEnd = &line[ sx*4 ], *l = line ;
+        //if( y == 0 ) printf("%u.%u.%u\ns : %02X.%02X.%02X.%02X\n",rgb->r,rgb->g,rgb->b,l[0],l[1],l[2],l[3]);
+        while( l != lineEnd ){
+            *l++ &= qualityBitsMask[rgb->r] ;
+            *l++ &= qualityBitsMask[rgb->g] ;
+            *l++ &= qualityBitsMask[rgb->b] ;
+            l++ ; // skip alpha
+        };
+        //if( y == 0 ){ l=line ; printf("e : %02X.%02X.%02X.%02X\n",l[0],l[1],l[2],l[3]);}
+    }
+
+    return o ;
+}
+
+QList<union qualityBits> generateQualityReduceList( void ){
     u_int8_t q = 24 ;
+
+    QList<union qualityBits> out ;
 
     union qualityBits rgb ;
     rgb.rgb = 0 ;
 
-    //u_int32_t rgb = 0 ;
-    //u_int8_t *rgb8 = (u_int8_t*)&rgb ;
-    //u_int8_t *r = rgb8, *g = &rgb8[1], *b = &rgb8[2] ;
-
     while(q){
         rgb.rgb = 0 ;
-        printf("quality %u\n",q) ;
 
         u_int8_t v = q/3 ;
 
-        //*r = v ; *g = v ; *b = v ;
         rgb.r = v ;
         rgb.g = v ;
         rgb.b = v ;
 
         v *= 3 ;
-
-        //printf("step 1 r%u g%u b%u v%u\n",*r,*g,*b,v);
 
         if( v != q ){
             u_int8_t chn_start = 0 ; // red
@@ -253,21 +212,54 @@ void qualityReduce( void ){
             while( chn_start != 3 ){
                 rgb.rgb = save_rgb ;
                 v = save_v ;
-                u_int8_t *i = &rgb.r ; // &rgb8[ chn_start ] ;
+                u_int8_t *i = &rgb.r ;
                 while( v != q ){
                     *i += 1 ;
                     v++ ;
                     i++ ;
                     if( i > &rgb.b ) i = &rgb.r ;
                 };
-                //printf("r%u g%u b%u\n",*r,*g,*b);
-                printf("r%u g%u b%u\n",rgb.r,rgb.g,rgb.b) ;
+
+                //printf("r%u g%u b%u\n",rgb.r,rgb.g,rgb.b) ;
+                out.append( rgb ) ;
                 chn_start++ ;
             }
-        } else printf("r%u g%u b%u\n",rgb.r,rgb.g,rgb.b) ; //printf("r%u g%u b%u\n",*r,*g,*b);
+        } else {
+            //printf("r%u g%u b%u\n",rgb.r,rgb.g,rgb.b) ;
+            out.append( rgb ) ;
+        }
 
         q--;
     }
+
+    return out ;
+}
+
+bool downgradeToColors( QPixmap &p, uint32_t nb ){
+    QImage i = p.toImage().convertToFormat( QImage::Format_RGBA8888 )  ;
+
+    if( countColors( &i ) <= nb ) return true ;
+
+    QList<union qualityBits> rgbs = generateQualityReduceList() ;
+
+    uint32_t listLength = rgbs.length() ;
+    uint32_t n = 0 ;
+
+    while( n < listLength ){
+        union qualityBits * rgb = &rgbs[n] ;
+        QImage ii = downsampleQImage( &i, rgb ) ;
+        uint32_t nbColors = countColors( &ii ) ;
+        //printf( "%u %u.%u.%u got %u colors\n", n, rgb->r, rgb->g, rgb->b, nbColors ) ;
+        if( nbColors <= nb ){
+            p.convertFromImage( ii ) ;
+            //printf( "downsampled to %u.%u.%u, now got %u colors on %u\n", rgb->r, rgb->g, rgb->b, nbColors, nb ) ;
+            return true ;
+        }
+        n++ ;
+    }
+
+    // fail.
+    return false ;
 }
 
 u_int32_t qt2gfm::applyTransparency( QPixmap &p ){
@@ -357,10 +349,11 @@ void qt2gfm::generateFrames( void ){
         zeroFrame( &f ) ;
 
         //printf("copy frame %i %i,%i %ix%i\n", n, x, y, frameWidth, frameHeight );
-        f.frame = original.copy( x, y, frameWidth, frameHeight ) ;
+        f.frame = fullSet.frame.copy( x, y, frameWidth, frameHeight ) ;
 
         f.transparent = applyTransparency( f.frame );
         applyDeep( &f ) ;
+
 
         if( vertical ) y += frameHeight ; else x += frameWidth ;
         frames.append( f ) ;
@@ -368,6 +361,7 @@ void qt2gfm::generateFrames( void ){
 
     generateNfo();
     //qualityReduce();
+
 }
 
 void qt2gfm::setTransparency( int t ){

@@ -33,6 +33,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->framesNfo->setStyleSheet("background:none;");
 
     //printf("window of %ix%i\n",width(),height());
+    frameSet.setDeep( ui->formatOpt->currentIndex(), false );
+
 }
 
 MainWindow::~MainWindow(){
@@ -58,7 +60,6 @@ void MainWindow::dropEvent(QDropEvent *e){
     //MainWindow * t = this ;
 
     QString fileName = filelist[0].toLocalFile();
-
     if( !frameSet.load( fileName ) ) return ; // load picture
 
     preview.clear();
@@ -133,9 +134,14 @@ void MainWindow::on_transparentOpt_currentIndexChanged(int index){
     showPreview();
 }
 
-
 void MainWindow::on_frameNbInput_valueChanged(int v){
     frameSet.forceFrameNb( v );
     updateFrameSizeLabel();
     showPreview();
 }
+
+void MainWindow::on_formatOpt_currentIndexChanged(int index){
+    frameSet.setDeep( index, true ) ;
+    showPreview();
+}
+
